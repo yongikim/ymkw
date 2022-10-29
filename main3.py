@@ -9,47 +9,78 @@ import csv
 from multiprocessing import Pool
 from itertools import chain
 import math
+import time
 
 DOMAIN = 'https://www.furusato-tax.jp'
 ROOT_URL = urljoin(DOMAIN, 'search?sort=11')
 
 
+# URLからHTMLを返す
 def fetch_html(url):
-    # URLからHTMLを返す
     res = urllib.request.urlopen(url)
     return BeautifulSoup(res, 'html.parser')
 
 
-def get_review_pages(url: str):
-    # レビューの一覧ページを取得する関数（lambdaを呼び出す関数）
-    try:
-        return get_review_pages_lambda(url)
-    except ClientError as e:
-        print('ClientError', e)
-        return get_review_pages(url)
-
-
-def get_review_pages_lambda(url: str):
+# Lambda を呼び出す
+def invoke_lambda(fun: str, payload: object):
     client = boto3.client('lambda')
-    payload = {
-        "url": url
-    }
     response = client.invoke(
-        FunctionName='products_with_review_count',
+        FunctionName=fun,
         InvocationType='RequestResponse',
         Payload=json.dumps(payload).encode('utf-8'),
     )
-    decoded = response['Payload'].read().decode('utf-8')
-    data = json.loads(decoded)
-    if 'body' in data:
-        body = json.loads(data['body'])
-        return body
-    elif 'error' in data:
-        print(data['error'], data['url'])
+    return response['Payload'].read().decode('utf-8')
+
+
+def get_products(url: str, retry=0):
+    """
+    商品の情報をリスト形式で取得
+    失敗した場合は5秒休んでリトライする
+    5回リトライしてだめなら，htmlを保存して諦める
+
+       [[商品名, 値段，感想数],
+        [商品名, 値段，感想数], ...]
+
+    """
+
+    if retry >= 5:
+        # TODO: save html
+        print('RETRY LIMIT SAVING HTML', url)
+        html = fetch_html(url)
+        with open(url.replace('/', '_').replace(':', '_') + '.txt', 'w') as f:
+            f.write(str(html))
+
         return []
-    else:
-        print(data, url)
-        return []
+
+    fun_name = 'products_with_review_count'
+    payload = {
+        "url": url,
+    }
+
+    try:
+        result = invoke_lambda(fun_name, payload)
+        data = json.loads(result)
+
+        if 'body' in data:
+            return json.loads(data['body'])
+
+        elif 'error' in data:
+            print('RETRY', data['url'], data['error'])
+            time.sleep(5)
+
+            return get_products(url, retry=retry+1)
+
+        else:
+            print('RETRY Unexpected', data, url)
+            time.sleep(5)
+
+            return get_products(url, retry=retry+1)
+
+    except ClientError as e:
+        print('RETRY ClientError', data['url'], e)
+        time.sleep(5)
+
+        return get_products(url, retry=retry+1)
 
 
 # 商品一覧ページの最大ページ数を抽出
@@ -104,7 +135,7 @@ if __name__ == "__main__":
             urls = products_urls[i:i+bulk_size]
 
             p = Pool(8)
-            result = p.map(get_review_pages, urls)
+            result = p.map(get_products, urls)
             result_flat = list(chain.from_iterable(result))
 
             with open('products_reviews.csv', 'a', newline='') as f:

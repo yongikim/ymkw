@@ -3,8 +3,9 @@ import pprint as pp
 import json
 
 client = boto3.client('lambda')
+url = "https://www.furusato-tax.jp/search?sort=11&page=1"
 payload = {
-    "url": "https://www.furusato-tax.jp/search?sort=11&page=1",
+    "url": url,
 }
 response = client.invoke(
     FunctionName='products_with_review_count',
