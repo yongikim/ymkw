@@ -125,7 +125,7 @@ if __name__ == "__main__":
         - 本番は、products_urls に対してループを回す
         - ここは並列化できる
         """
-        # 100ずつ並行処理
+        # 8個ずつ並行処理
         bulk_size = 8
         bulk_num = 1
         bulk_end = math.ceil(max_pages / bulk_size)
