@@ -77,7 +77,7 @@ def get_products(url: str, retry=0):
             return get_products(url, retry=retry+1)
 
     except ClientError as e:
-        print('RETRY ClientError', data['url'], e)
+        print('RETRY ClientError', url, e)
         time.sleep(5)
 
         return get_products(url, retry=retry+1)
