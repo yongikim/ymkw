@@ -26,7 +26,7 @@ def get_review_pages(url: str):
         "url": url
     }
     response = client.invoke(
-        FunctionName='price-url-maxpages',
+        FunctionName='urls',
         InvocationType='RequestResponse',
         Payload=json.dumps(payload).encode('utf-8'),
     )

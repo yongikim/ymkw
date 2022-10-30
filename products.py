@@ -52,7 +52,7 @@ def get_products(url: str, retry=0):
 
         return []
 
-    fun_name = 'products_with_review_count'
+    fun_name = 'products'
     payload = {
         "url": url,
     }

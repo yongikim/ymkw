@@ -1,23 +1,29 @@
 import json
+import urllib
+from typing import List
+from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 import re
 import math
-import requests
-from bs4 import BeautifulSoup
 
 
 DOMAIN = 'https://www.furusato-tax.jp'
 ROOT_URL = urljoin(DOMAIN, 'search?sort=11')
 
-# url から BeautifulSoup を生成
+
+def fetch_html(url):
+    # URLからHTMLを返す
+    res = urllib.request.urlopen(url)
+    return BeautifulSoup(res, 'html.parser')
 
 
-def get_soup(url: str) -> BeautifulSoup:
-    html = requests.get(url).text
-    return BeautifulSoup(html, 'html.parser')
+def get_ip_addr():
+    # 現在のグローバルIPアドレスを返す
+    html = fetch_html('http://checkip.dyndns.com/')
+    return html.body.text.split(': ')[1]
 
 
-def find_reviews_urls(products_url: str) -> list[str]:
+def find_reviews_urls(products_url: str) -> List[str]:
     """
     1つの商品一覧ページから、全ての感想一覧ページを取得
     商品の値段は感想一覧ページにはないので、ここで取得しておく
@@ -28,7 +34,7 @@ def find_reviews_urls(products_url: str) -> list[str]:
 
     returns:
 
-        [[商品Aの値段, 感想一覧ページのURL, 最大ページ数],
+        [[商品Aの値段
          [商品Bの値段, 感想一覧ページのURL, 最大ページ数],
          [商品Cの値段, 感想一覧ページのURL, 最大ページ数],
          [商品Dの値段, 感想一覧ページのURL, 最大ページ数],
@@ -37,7 +43,7 @@ def find_reviews_urls(products_url: str) -> list[str]:
     """
 
     # 商品一覧ページのHTMLを取得
-    soup = get_soup(products_url)
+    soup = fetch_html(products_url)
 
     # 商品カード
     product_cards = soup.select('.card-product')
@@ -82,8 +88,12 @@ def find_reviews_urls(products_url: str) -> list[str]:
 
 
 def lambda_handler(event, context):
+    # ip = get_ip_addr()
+    # print(ip)
+    url = event["url"]
+    body = find_reviews_urls(url)
     # TODO implement
     return {
         'statusCode': 200,
-        'body': json.dumps('Hello from Lambda!')
+        'body': json.dumps(body)
     }
